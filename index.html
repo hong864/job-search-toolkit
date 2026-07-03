@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>호미 구직 자동화 툴킷 v2</title>
+<style>
+  :root {
+    --bg: #0f0f13; --surface: #18181f; --surface2: #22222c;
+    --border: #2e2e3a; --accent: #7c6af7; --accent2: #a78bfa;
+    --text: #e8e6f0; --muted: #8884a0;
+    --green: #4ade80; --orange: #fb923c; --red: #f87171; --yellow: #facc15;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Apple SD Gothic Neo', 'Pretendard', sans-serif; min-height: 100vh; }
+
+  .header { padding: 18px 28px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
+  .logo { font-size: 17px; font-weight: 700; }
+  .logo span { color: var(--accent2); }
+  .badge { font-size: 11px; background: var(--surface2); border: 1px solid var(--border); padding: 3px 10px; border-radius: 20px; color: var(--muted); }
+  .header-right { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+  .stat-chip { font-size: 11px; padding: 3px 10px; border-radius: 12px; font-weight: 600; }
+  .chip-total { background: rgba(124,106,247,0.15); color: var(--accent2); border: 1px solid rgba(124,106,247,0.3); }
+  .chip-interview { background: rgba(251,146,60,0.15); color: var(--orange); border: 1px solid rgba(251,146,60,0.3); }
+
+  .tabs { display: flex; gap: 2px; padding: 14px 28px 0; border-bottom: 1px solid var(--border); overflow-x: auto; }
+  .tab { padding: 9px 18px; border-radius: 8px 8px 0 0; cursor: pointer; font-size: 13px; font-weight: 500; color: var(--muted); background: transparent; border: none; white-space: nowrap; transition: all 0.2s; position: relative; bottom: -1px; font-family: inherit; }
+  .tab.active { color: var(--text); background: var(--surface); border: 1px solid var(--border); border-bottom-color: var(--surface); }
+
+  .panel { display: none; padding: 24px 28px; }
+  .panel.active { display: block; }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 700px) { .grid-2 { grid-template-columns: 1fr; } .tabs, .header, .panel { padding-left: 14px; padding-right: 14px; } }
+
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px; }
+  .card-title { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; }
+
+  label { font-size: 12px; color: var(--muted); display: block; margin-bottom: 5px; margin-top: 12px; }
+  label:first-of-type { margin-top: 0; }
+  textarea, input[type=text], input[type=date], select {
+    width: 100%; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 7px; color: var(--text); font-family: inherit; font-size: 13px;
+    padding: 9px 11px; resize: vertical; outline: none; transition: border-color 0.2s;
+  }
+  textarea { min-height: 100px; }
+  textarea:focus, input:focus, select:focus { border-color: var(--accent); }
+  select option { background: var(--surface2); }
+
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 18px; border-radius: 7px; border: none; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; font-family: inherit; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: var(--accent2); }
+  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+  .btn-secondary:hover { border-color: var(--accent); }
+  .btn-danger { background: rgba(248,113,113,0.1); color: var(--red); border: 1px solid rgba(248,113,113,0.3); padding: 5px 10px; font-size: 11px; }
+  .btn-sm { padding: 5px 12px; font-size: 11px; }
+  .mt { margin-top: 12px; }
+
+  .output-box { background: var(--surface2); border: 1px solid var(--border); border-radius: 7px; padding: 14px; font-size: 12px; line-height: 1.7; white-space: pre-wrap; min-height: 80px; color: var(--text); max-height: 380px; overflow-y: auto; }
+  .placeholder { color: var(--muted); font-style: italic; }
+
+  .spinner { display: inline-block; width: 12px; height: 12px; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* DB 리스트 */
+  .db-toolbar { display: flex; gap: 8px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; }
+  .db-filter { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 12px; padding: 6px 10px; font-family: inherit; cursor: pointer; }
+  .db-filter:focus { outline: none; border-color: var(--accent); }
+  .search-input { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 12px; padding: 6px 10px; font-family: inherit; flex: 1; min-width: 120px; }
+  .search-input:focus { outline: none; border-color: var(--accent); }
+
+  .record-list { display: flex; flex-direction: column; gap: 8px; }
+  .record-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; cursor: pointer; transition: border-color 0.2s; }
+  .record-card:hover { border-color: var(--accent); }
+  .record-card.expanded { border-color: var(--accent); }
+  .record-header { display: flex; align-items: center; gap: 8px; }
+  .record-company { font-size: 14px; font-weight: 600; }
+  .record-position { font-size: 12px; color: var(--muted); }
+  .record-meta { margin-left: auto; display: flex; gap: 6px; align-items: center; }
+  .stage-badge { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+  .stage-관심 { background: rgba(136,132,160,0.2); color: var(--muted); }
+  .stage-지원완료 { background: rgba(96,165,250,0.2); color: #60a5fa; }
+  .stage-서류통과 { background: rgba(250,204,21,0.2); color: var(--yellow); }
+  .stage-1차면접 { background: rgba(251,146,60,0.2); color: var(--orange); }
+  .stage-2차면접 { background: rgba(251,146,60,0.2); color: var(--orange); }
+  .stage-최종면접 { background: rgba(167,139,250,0.2); color: var(--accent2); }
+  .stage-합격 { background: rgba(74,222,128,0.2); color: var(--green); }
+  .stage-불합격 { background: rgba(248,113,113,0.2); color: var(--red); }
+  .stage-보류 { background: rgba(136,132,160,0.2); color: var(--muted); }
+  .priority-s { color: var(--red); font-weight: 700; font-size: 11px; }
+  .priority-a { color: var(--orange); font-weight: 700; font-size: 11px; }
+  .priority-b { color: var(--yellow); font-weight: 700; font-size: 11px; }
+  .priority-c { color: var(--muted); font-weight: 700; font-size: 11px; }
+
+  .record-body { display: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+  .record-body.show { display: block; }
+  .detail-row { display: flex; gap: 8px; margin-bottom: 6px; font-size: 12px; }
+  .detail-label { color: var(--muted); min-width: 64px; }
+  .detail-value { color: var(--text); }
+  .saved-content { background: var(--surface2); border-radius: 6px; padding: 10px 12px; font-size: 11px; line-height: 1.6; white-space: pre-wrap; margin-top: 8px; max-height: 200px; overflow-y: auto; color: var(--text); }
+  .record-actions { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+
+  /* 파이프라인 보드 */
+  .pipeline { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; overflow-x: auto; }
+  @media (max-width: 700px) { .pipeline { grid-template-columns: repeat(2, 1fr); } }
+  .pipe-col { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px; min-height: 120px; }
+  .pipe-col-title { font-size: 11px; font-weight: 700; color: var(--muted); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px; display: flex; justify-content: space-between; align-items: center; }
+  .pipe-count { font-size: 16px; font-weight: 700; color: var(--text); }
+  .pipe-item { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; margin-bottom: 6px; font-size: 12px; }
+  .pipe-item-company { font-weight: 600; }
+  .pipe-item-position { color: var(--muted); font-size: 11px; margin-top: 2px; }
+
+  .empty-state { text-align: center; padding: 40px 20px; color: var(--muted); font-size: 13px; }
+  .empty-icon { font-size: 32px; margin-bottom: 10px; }
+
+  /* 탭 아이콘 */
+  .section-title { font-size: 15px; font-weight: 700; margin-bottom: 18px; }
+  .toast { position: fixed; bottom: 24px; right: 24px; background: var(--accent); color: #fff; padding: 10px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; z-index: 999; opacity: 0; transition: opacity 0.3s; pointer-events: none; }
+  .toast.show { opacity: 1; }
+
+  /* 편집 모달 */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; display: none; align-items: center; justify-content: center; }
+  .modal-overlay.show { display: flex; }
+  .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; width: 90%; max-width: 480px; max-height: 90vh; overflow-y: auto; }
+  .modal-title { font-size: 15px; font-weight: 700; margin-bottom: 18px; }
+  .modal-actions { display: flex; gap: 8px; margin-top: 18px; justify-content: flex-end; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">호미 <span>구직 DB</span></div>
+  <div class="badge" id="d-day-badge">D-17 · 계약종료 7/18</div>
+  <div class="header-right">
+    <span class="stat-chip chip-total" id="stat-total">전체 0건</span>
+    <span class="stat-chip chip-interview" id="stat-interview">면접 0건</span>
+    <button class="btn btn-secondary" style="padding:5px 12px;font-size:11px" id="sync-btn" onclick="syncToNotion()">🔄 Notion 동기화</button>
+    <span id="sync-status" style="font-size:11px;color:var(--muted)"></span>
+  </div>
+</div>
+
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('db')">📋 지원 DB</button>
+  <button class="tab" onclick="switchTab('pipeline')">🗂 파이프라인</button>
+  <button class="tab" onclick="switchTab('resume')">📄 이력서 생성</button>
+  <button class="tab" onclick="switchTab('interview')">🎯 면접 준비</button>
+</div>
+
+<!-- 탭1: 지원 DB -->
+<div id="tab-db" class="panel active">
+  <div style="display:flex; gap:10px; align-items:flex-start; flex-wrap:wrap;">
+    <div style="flex:1; min-width:260px;">
+      <div class="section-title">지원 현황 DB</div>
+      <div class="db-toolbar">
+        <input class="search-input" placeholder="🔍 회사명 검색..." oninput="renderList()" id="search-input">
+        <select class="db-filter" onchange="renderList()" id="filter-stage">
+          <option value="">전체 단계</option>
+          <option>관심</option><option>지원완료</option><option>서류통과</option>
+          <option>1차면접</option><option>2차면접</option><option>최종면접</option>
+          <option>합격</option><option>불합격</option><option>보류</option>
+        </select>
+        <select class="db-filter" onchange="renderList()" id="filter-priority">
+          <option value="">전체 우선순위</option>
+          <option>S</option><option>A</option><option>B</option><option>C</option>
+        </select>
+        <button class="btn btn-primary btn-sm" onclick="openAddModal()">+ 추가</button>
+      </div>
+      <div class="record-list" id="record-list">
+        <div class="empty-state"><div class="empty-icon">📭</div>저장된 지원 내역이 없습니다.<br>우측 폼 또는 상단 + 버튼으로 추가하세요.</div>
+      </div>
+    </div>
+    <div style="width:280px; flex-shrink:0;">
+      <div class="card">
+        <div class="card-title">빠른 추가</div>
+        <label>회사명</label>
+        <input type="text" id="q-company" placeholder="예: 무신사">
+        <label>포지션</label>
+        <input type="text" id="q-position" placeholder="예: 서비스기획 PO">
+        <label>단계</label>
+        <select id="q-stage">
+          <option>관심</option><option selected>지원완료</option><option>서류통과</option>
+          <option>1차면접</option><option>2차면접</option><option>최종면접</option>
+          <option>합격</option><option>불합격</option><option>보류</option>
+        </select>
+        <label>우선순위</label>
+        <select id="q-priority"><option>S</option><option selected>A</option><option>B</option><option>C</option></select>
+        <label>지원경로</label>
+        <select id="q-channel">
+          <option>원티드</option><option>잡코리아</option><option>사람인</option>
+          <option>링크드인</option><option>리멤버</option><option>헤드헌터</option><option>직접지원</option>
+        </select>
+        <label>지원일</label>
+        <input type="date" id="q-date">
+        <label>메모</label>
+        <textarea id="q-memo" placeholder="연봉, 담당자, 특이사항 등" style="min-height:60px"></textarea>
+        <button class="btn btn-primary mt" style="width:100%" onclick="quickAdd()">저장</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 탭2: 파이프라인 -->
+<div id="tab-pipeline" class="panel">
+  <div class="section-title">파이프라인 보드</div>
+  <div class="pipeline" id="pipeline-board"></div>
+</div>
+
+<!-- 탭3: 이력서 생성 -->
+<div id="tab-resume" class="panel">
+  <div class="section-title">이력서 · 커버레터 커스터마이징</div>
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">입력</div>
+      <label>지원 대상 (DB에서 선택 또는 직접 입력)</label>
+      <select id="r-select" onchange="fillFromDB('r')">
+        <option value="">직접 입력</option>
+      </select>
+      <label>회사명 · 포지션</label>
+      <input type="text" id="r-company" placeholder="예: 코그콤 · 서비스기획 PM">
+      <label>JD 핵심 요구사항</label>
+      <textarea id="r-jd" placeholder="공고 붙여넣기 또는 키워드 입력&#10;예: AI 서비스기획, GA4/GTM, 이커머스 UX..."></textarea>
+      <label>이력서 베이스</label>
+      <select id="r-base">
+        <option value="A">A — 서비스기획/PO (이커머스 23년)</option>
+        <option value="B">B — GTM/데이터 애널리틱스</option>
+        <option value="C">C — 프리랜서 컨설턴트</option>
+      </select>
+      <label>강조사항 (선택)</label>
+      <input type="text" id="r-extra" placeholder="예: AI 도입 경험, 멀티브랜드 운영">
+      <div style="display:flex; gap:8px; margin-top:12px;">
+        <button class="btn btn-primary" id="r-btn" onclick="generateResume()" style="flex:1">✨ 생성</button>
+        <button class="btn btn-secondary" id="r-save-btn" onclick="saveResumeResult()" style="display:none">💾 DB저장</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">결과 <button class="btn btn-secondary btn-sm" onclick="copyEl('r-output')">복사</button></div>
+      <div class="output-box" id="r-output"><span class="placeholder">생성 버튼을 누르세요.</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- 탭4: 면접 준비 -->
+<div id="tab-interview" class="panel">
+  <div class="section-title">면접 준비 질문 생성</div>
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">입력</div>
+      <label>지원 대상 (DB에서 선택)</label>
+      <select id="i-select" onchange="fillFromDB('i')">
+        <option value="">직접 입력</option>
+      </select>
+      <label>회사명 · 포지션</label>
+      <input type="text" id="i-company" placeholder="예: 코그콤 · 서비스기획 PM">
+      <label>회사 특징</label>
+      <textarea id="i-info" placeholder="사업 방향, 최근 이슈 등" style="min-height:70px"></textarea>
+      <label>면접 유형</label>
+      <select id="i-type">
+        <option value="first">1차 (인사/문화)</option>
+        <option value="second">2차 (직무 심층)</option>
+        <option value="final">최종 (임원)</option>
+      </select>
+      <label>특별 준비 (선택)</label>
+      <input type="text" id="i-focus" placeholder="예: 연봉 협상, AI 경험 강조, 이직 횟수 대응">
+      <div style="display:flex; gap:8px; margin-top:12px;">
+        <button class="btn btn-primary" id="i-btn" onclick="generateInterview()" style="flex:1">🎯 생성</button>
+        <button class="btn btn-secondary" id="i-save-btn" onclick="saveInterviewResult()" style="display:none">💾 DB저장</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">예상 질문 <button class="btn btn-secondary btn-sm" onclick="copyEl('i-output')">복사</button></div>
+      <div class="output-box" id="i-output"><span class="placeholder">생성 버튼을 누르세요.</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- 편집 모달 -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal">
+    <div class="modal-title" id="modal-title">지원 내역 추가</div>
+    <label>회사명</label>
+    <input type="text" id="m-company" placeholder="회사명">
+    <label>포지션</label>
+    <input type="text" id="m-position" placeholder="서비스기획 PO">
+    <label>단계</label>
+    <select id="m-stage">
+      <option>관심</option><option>지원완료</option><option>서류통과</option>
+      <option>1차면접</option><option>2차면접</option><option>최종면접</option>
+      <option>합격</option><option>불합격</option><option>보류</option>
+    </select>
+    <label>우선순위</label>
+    <select id="m-priority"><option>S</option><option>A</option><option>B</option><option>C</option></select>
+    <label>지원경로</label>
+    <select id="m-channel">
+      <option>원티드</option><option>잡코리아</option><option>사람인</option>
+      <option>링크드인</option><option>리멤버</option><option>헤드헌터</option><option>직접지원</option>
+    </select>
+    <label>지원일</label>
+    <input type="date" id="m-date">
+    <label>면접일</label>
+    <input type="date" id="m-interview-date">
+    <label>담당자</label>
+    <input type="text" id="m-contact" placeholder="예: 김나래 매니저">
+    <label>메모</label>
+    <textarea id="m-memo" placeholder="연봉, 특이사항 등"></textarea>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal()">취소</button>
+      <button class="btn btn-primary" onclick="saveModal()">저장</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const STORAGE_KEY = 'job_db_records';
+const RESUME_KEY = 'job_db_resume_';
+const INTERVIEW_KEY = 'job_db_interview_';
+let records = [];
+let editingId = null;
+
+const PROFILE = `홍태원 (호미) — 서비스기획 PO, 23년 경력 (패션 이커머스 전문)
+주요 역량: PDP/PLP UX 기획, GTM/GA4 구축, 멀티브랜드 플랫폼 운영, AI 자동화
+주요 경력:
+- 시선인터내셔널(프리랜서): sisun.com 5개 브랜드 PDP 리뉴얼, GTM/GA4 구축, 온라인 협의체 운영
+- 오감스튜디오(10년): Converse Korea, The North Face O2O, 롯데렌터카, 삼성물산 브랜드 서비스기획 PM
+- AI 역량: Claude Code 활용, Notion 자동화, GA4/GTM 구축, 데이터 기반 전환 최적화`;
+
+// ── Storage 헬퍼 ──────────────────────────────────────
+async function loadRecords() {
+  try {
+    const res = await window.storage.get(STORAGE_KEY);
+    records = res ? JSON.parse(res.value) : [];
+  } catch { records = []; }
+}
+
+async function saveRecords() {
+  try {
+    await window.storage.set(STORAGE_KEY, JSON.stringify(records));
+  } catch(e) { showToast('저장 실패: ' + e.message); }
+}
+
+async function saveExtra(key, value) {
+  try { await window.storage.set(key, value); } catch {}
+}
+
+async function loadExtra(key) {
+  try { const r = await window.storage.get(key); return r ? r.value : null; } catch { return null; }
+}
+
+// ── 초기화 ──────────────────────────────────────────
+window.addEventListener('load', async () => {
+  const today = new Date();
+  document.getElementById('q-date').value = today.toISOString().split('T')[0];
+
+  // D-day
+  const end = new Date('2026-07-18');
+  const diff = Math.ceil((end - today) / 86400000);
+  document.getElementById('d-day-badge').textContent = `D-${diff} · 계약종료 7/18`;
+
+  await loadRecords();
+
+  // 기본 데이터 (코그콤·글로벌비전) 없으면 삽입
+  if (records.length === 0) {
+    records = [
+      { id: uid(), company: '코그콤 (CogCom)', position: '서비스기획 / AI 전략', stage: '1차면접', priority: 'S', channel: '직접지원', date: '2026-07-01', interviewDate: '2026-07-07', contact: '김나래 매니저', memo: '1차 온라인 화상면접 7/7~9 중 11시 제안', resumeSaved: false, interviewSaved: false },
+      { id: uid(), company: '글로벌비전', position: '사업전략 / 신사업기획 (AX 추진)', stage: '서류통과', priority: 'A', channel: '잡코리아', date: '2026-06-28', interviewDate: '', contact: '', memo: '연봉 갭 존재 협상 필요. 사내 LLM AX 추진 회사', resumeSaved: false, interviewSaved: false }
+    ];
+    await saveRecords();
+  }
+  renderAll();
+});
+
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+
+// ── 렌더링 ──────────────────────────────────────────
+function renderAll() {
+  renderList();
+  renderPipeline();
+  updateStats();
+  populateSelects();
+}
+
+function renderList() {
+  const search = document.getElementById('search-input').value.toLowerCase();
+  const stage = document.getElementById('filter-stage').value;
+  const priority = document.getElementById('filter-priority').value;
+
+  let filtered = records.filter(r => {
+    const matchSearch = !search || r.company.toLowerCase().includes(search) || (r.position||'').toLowerCase().includes(search);
+    const matchStage = !stage || r.stage === stage;
+    const matchPriority = !priority || r.priority === priority;
+    return matchSearch && matchStage && matchPriority;
+  });
+
+  const list = document.getElementById('record-list');
+  if (!filtered.length) {
+    list.innerHTML = `<div class="empty-state"><div class="empty-icon">🔍</div>조건에 맞는 내역이 없습니다.</div>`;
+    return;
+  }
+
+  filtered.sort((a, b) => { const o = {S:0,A:1,B:2,C:3}; return (o[a.priority]||9)-(o[b.priority]||9); });
+
+  list.innerHTML = filtered.map(r => `
+    <div class="record-card" id="card-${r.id}" onclick="toggleCard('${r.id}')">
+      <div class="record-header">
+        <span class="priority-${r.priority.toLowerCase()}">${r.priority}</span>
+        <div>
+          <div class="record-company">${r.company}</div>
+          <div class="record-position">${r.position || ''}</div>
+        </div>
+        <div class="record-meta">
+          <span class="stage-badge stage-${r.stage}">${r.stage}</span>
+          <span style="font-size:11px;color:var(--muted)">${r.date || ''}</span>
+        </div>
+      </div>
+      <div class="record-body" id="body-${r.id}">
+        <div class="detail-row"><span class="detail-label">지원경로</span><span class="detail-value">${r.channel||'-'}</span></div>
+        <div class="detail-row"><span class="detail-label">면접일</span><span class="detail-value">${r.interviewDate||'-'}</span></div>
+        <div class="detail-row"><span class="detail-label">담당자</span><span class="detail-value">${r.contact||'-'}</span></div>
+        ${r.memo ? `<div class="detail-row"><span class="detail-label">메모</span><span class="detail-value">${r.memo}</span></div>` : ''}
+        ${r.resumeSaved ? `<div style="font-size:11px;color:var(--accent2);margin-top:6px">📄 이력서 결과 저장됨</div>` : ''}
+        ${r.interviewSaved ? `<div style="font-size:11px;color:var(--orange);margin-top:4px">🎯 면접 준비 결과 저장됨</div>` : ''}
+        <div class="record-actions">
+          <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation(); editRecord('${r.id}')">✏️ 수정</button>
+          <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation(); updateStage('${r.id}')">단계 변경</button>
+          <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation(); goResume('${r.id}')">📄 이력서</button>
+          <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation(); goInterview('${r.id}')">🎯 면접준비</button>
+          <button class="btn btn-danger" onclick="event.stopPropagation(); deleteRecord('${r.id}')">삭제</button>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderPipeline() {
+  const stages = [
+    { key: '지원완료', label: '지원완료', color: '#60a5fa' },
+    { key: '서류통과', label: '서류통과', color: '#facc15' },
+    { key: '1차면접,2차면접,최종면접', label: '면접 중', color: '#fb923c' },
+    { key: '합격', label: '합격', color: '#4ade80' }
+  ];
+  const board = document.getElementById('pipeline-board');
+  board.innerHTML = stages.map(s => {
+    const keys = s.key.split(',');
+    const items = records.filter(r => keys.includes(r.stage));
+    return `<div class="pipe-col">
+      <div class="pipe-col-title">
+        <span style="color:${s.color}">${s.label}</span>
+        <span class="pipe-count" style="color:${s.color}">${items.length}</span>
+      </div>
+      ${items.length ? items.map(r => `
+        <div class="pipe-item">
+          <div class="pipe-item-company">${r.company}</div>
+          <div class="pipe-item-position">${r.position||''}</div>
+          ${r.interviewDate ? `<div style="font-size:10px;color:var(--accent2);margin-top:3px">📅 ${r.interviewDate}</div>` : ''}
+        </div>`).join('') : `<div style="font-size:11px;color:var(--muted);text-align:center;padding:16px 0">없음</div>`}
+    </div>`;
+  }).join('');
+}
+
+function updateStats() {
+  document.getElementById('stat-total').textContent = `전체 ${records.length}건`;
+  const interview = records.filter(r => ['1차면접','2차면접','최종면접'].includes(r.stage)).length;
+  document.getElementById('stat-interview').textContent = `면접 ${interview}건`;
+}
+
+function populateSelects() {
+  const opts = ['<option value="">직접 입력</option>', ...records.map(r => `<option value="${r.id}">${r.company} · ${r.stage}</option>`)].join('');
+  document.getElementById('r-select').innerHTML = opts;
+  document.getElementById('i-select').innerHTML = opts;
+}
+
+// ── CRUD ──────────────────────────────────────────
+function toggleCard(id) {
+  const body = document.getElementById('body-' + id);
+  const card = document.getElementById('card-' + id);
+  body.classList.toggle('show');
+  card.classList.toggle('expanded');
+}
+
+function quickAdd() {
+  const company = document.getElementById('q-company').value.trim();
+  if (!company) { showToast('회사명을 입력하세요'); return; }
+  const r = {
+    id: uid(),
+    company,
+    position: document.getElementById('q-position').value.trim(),
+    stage: document.getElementById('q-stage').value,
+    priority: document.getElementById('q-priority').value,
+    channel: document.getElementById('q-channel').value,
+    date: document.getElementById('q-date').value,
+    interviewDate: '',
+    contact: '',
+    memo: document.getElementById('q-memo').value.trim(),
+    resumeSaved: false, interviewSaved: false
+  };
+  records.unshift(r);
+  saveRecords();
+  renderAll();
+  document.getElementById('q-company').value = '';
+  document.getElementById('q-position').value = '';
+  document.getElementById('q-memo').value = '';
+  showToast('✅ 저장됨');
+}
+
+function openAddModal() {
+  editingId = null;
+  document.getElementById('modal-title').textContent = '지원 내역 추가';
+  ['m-company','m-position','m-contact','m-memo'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('m-stage').value = '지원완료';
+  document.getElementById('m-priority').value = 'A';
+  document.getElementById('m-channel').value = '원티드';
+  document.getElementById('m-date').value = new Date().toISOString().split('T')[0];
+  document.getElementById('m-interview-date').value = '';
+  document.getElementById('modal-overlay').classList.add('show');
+}
+
+function editRecord(id) {
+  editingId = id;
+  const r = records.find(x => x.id === id);
+  if (!r) return;
+  document.getElementById('modal-title').textContent = '지원 내역 수정';
+  document.getElementById('m-company').value = r.company;
+  document.getElementById('m-position').value = r.position || '';
+  document.getElementById('m-stage').value = r.stage;
+  document.getElementById('m-priority').value = r.priority;
+  document.getElementById('m-channel').value = r.channel || '원티드';
+  document.getElementById('m-date').value = r.date || '';
+  document.getElementById('m-interview-date').value = r.interviewDate || '';
+  document.getElementById('m-contact').value = r.contact || '';
+  document.getElementById('m-memo').value = r.memo || '';
+  document.getElementById('modal-overlay').classList.add('show');
+}
+
+function saveModal() {
+  const company = document.getElementById('m-company').value.trim();
+  if (!company) { showToast('회사명 입력 필요'); return; }
+  const data = {
+    company,
+    position: document.getElementById('m-position').value.trim(),
+    stage: document.getElementById('m-stage').value,
+    priority: document.getElementById('m-priority').value,
+    channel: document.getElementById('m-channel').value,
+    date: document.getElementById('m-date').value,
+    interviewDate: document.getElementById('m-interview-date').value,
+    contact: document.getElementById('m-contact').value.trim(),
+    memo: document.getElementById('m-memo').value.trim(),
+  };
+  if (editingId) {
+    const idx = records.findIndex(x => x.id === editingId);
+    if (idx > -1) records[idx] = { ...records[idx], ...data };
+  } else {
+    records.unshift({ id: uid(), resumeSaved: false, interviewSaved: false, ...data });
+  }
+  saveRecords(); renderAll(); closeModal();
+  showToast(editingId ? '✅ 수정됨' : '✅ 추가됨');
+}
+
+function closeModal() { document.getElementById('modal-overlay').classList.remove('show'); }
+
+async function deleteRecord(id) {
+  if (!confirm('삭제할까요?')) return;
+  records = records.filter(r => r.id !== id);
+  await saveRecords();
+  try { await window.storage.delete(RESUME_KEY + id); await window.storage.delete(INTERVIEW_KEY + id); } catch {}
+  renderAll();
+  showToast('🗑 삭제됨');
+}
+
+async function updateStage(id) {
+  const stages = ['관심','지원완료','서류통과','1차면접','2차면접','최종면접','합격','불합격','보류'];
+  const r = records.find(x => x.id === id);
+  if (!r) return;
+  const cur = stages.indexOf(r.stage);
+  const next = prompt(`단계 변경 (현재: ${r.stage})\n0:관심 1:지원완료 2:서류통과 3:1차면접 4:2차면접 5:최종면접 6:합격 7:불합격 8:보류\n번호 입력:`);
+  if (next === null) return;
+  const idx = parseInt(next);
+  if (stages[idx]) { r.stage = stages[idx]; await saveRecords(); renderAll(); showToast(`단계: ${r.stage}`); }
+}
+
+// ── DB 선택 연동 ──────────────────────────────────────
+function fillFromDB(prefix) {
+  const id = document.getElementById(prefix + '-select').value;
+  if (!id) return;
+  const r = records.find(x => x.id === id);
+  if (!r) return;
+  document.getElementById(prefix + '-company').value = `${r.company} · ${r.position}`;
+  if (prefix === 'i' && r.memo) document.getElementById('i-info').value = r.memo;
+}
+
+function goResume(id) {
+  const r = records.find(x => x.id === id);
+  if (!r) return;
+  switchTabByName('resume');
+  document.getElementById('r-select').value = id;
+  document.getElementById('r-company').value = `${r.company} · ${r.position}`;
+}
+
+function goInterview(id) {
+  const r = records.find(x => x.id === id);
+  if (!r) return;
+  switchTabByName('interview');
+  document.getElementById('i-select').value = id;
+  document.getElementById('i-company').value = `${r.company} · ${r.position}`;
+  if (r.memo) document.getElementById('i-info').value = r.memo;
+}
+
+// ── Claude API ──────────────────────────────────────
+async function callClaude(prompt) {
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 1000, messages: [{ role: 'user', content: prompt }] })
+  });
+  const data = await res.json();
+  return data.content?.[0]?.text || '오류가 발생했습니다.';
+}
+
+async function generateResume() {
+  const company = document.getElementById('r-company').value.trim();
+  const jd = document.getElementById('r-jd').value.trim();
+  if (!company || !jd) { showToast('회사명과 JD를 입력하세요'); return; }
+  const btn = document.getElementById('r-btn');
+  const out = document.getElementById('r-output');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> 생성 중...';
+  const baseMap = { A: '서비스기획/PO 23년 이커머스', B: 'GTM·GA4 데이터 애널리틱스', C: '프리랜서 컨설턴트' };
+  const base = document.getElementById('r-base').value;
+  const extra = document.getElementById('r-extra').value;
+  const prompt = `${PROFILE}\n이력서 베이스: ${baseMap[base]}${extra ? '\n강조: '+extra : ''}\n\n지원: ${company}\nJD: ${jd}\n\n아래 형식으로 작성해줘:\n▶ 맞춤 자기소개 (3~4문장)\n[내용]\n\n▶ JD 매칭 핵심 포인트 (5개)\n1. [포인트]\n2. [포인트]\n3. [포인트]\n4. [포인트]\n5. [포인트]\n\n▶ 주의사항 · 보완 필요 (1~2개)\n[내용]`;
+  try {
+    const result = await callClaude(prompt);
+    out.textContent = result;
+    document.getElementById('r-save-btn').style.display = 'inline-flex';
+  } catch(e) { out.textContent = '오류: ' + e.message; }
+  btn.disabled = false; btn.innerHTML = '✨ 생성';
+}
+
+async function saveResumeResult() {
+  const id = document.getElementById('r-select').value;
+  const content = document.getElementById('r-output').textContent;
+  if (!content || content.includes('생성 버튼')) return;
+  if (id) {
+    await saveExtra(RESUME_KEY + id, content);
+    const r = records.find(x => x.id === id);
+    if (r) { r.resumeSaved = true; await saveRecords(); renderAll(); }
+  }
+  showToast('💾 이력서 결과 저장됨');
+}
+
+async function generateInterview() {
+  const company = document.getElementById('i-company').value.trim();
+  if (!company) { showToast('회사명을 입력하세요'); return; }
+  const btn = document.getElementById('i-btn');
+  const out = document.getElementById('i-output');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> 생성 중...';
+  const typeMap = { first: '1차(인사/문화)', second: '2차 직무 심층', final: '최종 임원' };
+  const type = document.getElementById('i-type').value;
+  const info = document.getElementById('i-info').value;
+  const focus = document.getElementById('i-focus').value;
+  const prompt = `${PROFILE}\n\n지원: ${company}\n회사 정보: ${info||'-'}\n면접 유형: ${typeMap[type]}\n${focus ? '특별 준비: '+focus : ''}\n\n예상 질문 8개와 답변 핵심 포인트를 작성해줘.\n\n형식:\n[카테고리] 질문\n→ 핵심 포인트 (1~2줄)\n\n카테고리: 자기소개 / 경력 / 직무역량 / 조직문화 / 연봉협상 / 역질문`;
+  try {
+    const result = await callClaude(prompt);
+    out.textContent = result;
+    document.getElementById('i-save-btn').style.display = 'inline-flex';
+  } catch(e) { out.textContent = '오류: ' + e.message; }
+  btn.disabled = false; btn.innerHTML = '🎯 생성';
+}
+
+async function saveInterviewResult() {
+  const id = document.getElementById('i-select').value;
+  const content = document.getElementById('i-output').textContent;
+  if (!content || content.includes('생성 버튼')) return;
+  if (id) {
+    await saveExtra(INTERVIEW_KEY + id, content);
+    const r = records.find(x => x.id === id);
+    if (r) { r.interviewSaved = true; await saveRecords(); renderAll(); }
+  }
+  showToast('💾 면접 준비 결과 저장됨');
+}
+
+// ── 유틸 ──────────────────────────────────────────
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach((t,i) => t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById('tab-' + name).classList.add('active');
+}
+
+function switchTabByName(name) {
+  document.querySelectorAll('.tab').forEach(t => {
+    const map = { db:'📋 지원 DB', pipeline:'🗂 파이프라인', resume:'📄 이력서 생성', interview:'🎯 면접 준비' };
+    t.classList.toggle('active', t.textContent.trim() === map[name]);
+  });
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+}
+
+function copyEl(id) {
+  navigator.clipboard.writeText(document.getElementById(id).textContent).then(() => showToast('복사됨'));
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+// ── Notion 동기화 ──────────────────────────────────
+const NOTION_DB_ID = '97d0f80d-33e5-48a9-bf66-6743a0c14b1f';
+const NOTION_SYNC_KEY = 'notion_synced_ids';
+
+async function syncToNotion() {
+  const btn = document.getElementById('sync-btn');
+  const status = document.getElementById('sync-status');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> 동기화 중...';
+  btn.style.color = 'var(--accent2)';
+  status.textContent = '';
+
+  // 이미 동기화된 ID 목록 로드
+  let syncedIds = {};
+  try {
+    const r = await window.storage.get(NOTION_SYNC_KEY);
+    if (r) syncedIds = JSON.parse(r.value);
+  } catch {}
+
+  let created = 0, updated = 0, failed = 0;
+
+  for (const r of records) {
+    try {
+      const props = buildNotionProps(r);
+      if (syncedIds[r.id]) {
+        // 기존 페이지 업데이트
+        await notionRequest('PATCH', `/pages/${syncedIds[r.id]}`, { properties: props });
+        updated++;
+      } else {
+        // 신규 페이지 생성
+        const res = await notionRequest('POST', '/pages', {
+          parent: { database_id: NOTION_DB_ID },
+          properties: props
+        });
+        if (res && res.id) {
+          syncedIds[r.id] = res.id;
+          created++;
+        }
+      }
+    } catch(e) {
+      console.error('sync error', r.company, e);
+      failed++;
+    }
+  }
+
+  // 동기화 ID 맵 저장
+  await window.storage.set(NOTION_SYNC_KEY, JSON.stringify(syncedIds));
+  await window.storage.set('notion_last_sync', new Date().toISOString());
+
+  btn.disabled = false;
+  btn.innerHTML = '🔄 Notion 동기화';
+  btn.style.color = '';
+
+  const msg = `신규 ${created}건 · 업데이트 ${updated}건${failed ? ` · 실패 ${failed}건` : ''}`;
+  status.textContent = '✅ ' + msg;
+  showToast('Notion 동기화 완료 — ' + msg);
+
+  // 마지막 동기화 시각 표시
+  setTimeout(() => {
+    const now = new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+    status.textContent = `마지막 동기화 ${now}`;
+  }, 3000);
+}
+
+function buildNotionProps(r) {
+  const props = {
+    '회사명': { title: [{ text: { content: r.company } }] },
+  };
+  if (r.position) props['포지션'] = { rich_text: [{ text: { content: r.position } }] };
+  if (r.stage)    props['단계']   = { select: { name: r.stage } };
+  if (r.priority) props['우선순위'] = { select: { name: r.priority } };
+  if (r.channel)  props['지원경로'] = { select: { name: r.channel } };
+  if (r.contact)  props['담당자']  = { rich_text: [{ text: { content: r.contact } }] };
+  if (r.memo)     props['메모']    = { rich_text: [{ text: { content: r.memo } }] };
+  if (r.date)     props['date:지원일:start'] = { date: { start: r.date } };
+  if (r.interviewDate) props['date:면접일:start'] = { date: { start: r.interviewDate } };
+  return props;
+}
+
+async function notionRequest(method, path, body) {
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 1000,
+      mcp_servers: [{ type: 'url', url: 'https://mcp.notion.com/mcp', name: 'notion' }],
+      messages: [{
+        role: 'user',
+        content: `Notion API 호출: ${method} ${path}\n요청 바디(JSON): ${JSON.stringify(body)}\n\n결과를 JSON만 반환해줘. 설명 없이.`
+      }]
+    })
+  });
+  const data = await res.json();
+  const text = data.content?.map(c => c.text || '').join('') || '';
+  try {
+    const clean = text.replace(/```json|```/g, '').trim();
+    return JSON.parse(clean);
+  } catch { return { raw: text }; }
+}
+</script>
+</body>
+</html>
