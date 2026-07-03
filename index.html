@@ -326,7 +326,7 @@ function saveWU(){
 async function nFetch(method,path,body){
   const base=getWU();
   if(!base)throw new Error('⚙️ 설정 탭에서 Worker URL을 입력하세요');
-  const res=await fetch(`${base}/notion${path}`,{
+  const res=await fetch(`${base}${path}`,{
     method,headers:{'Content-Type':'application/json'},
     body:body?JSON.stringify(body):undefined
   });
