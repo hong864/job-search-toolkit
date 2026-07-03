@@ -1,0 +1,5 @@
+{
+  "name": "job-search-notion-proxy",
+  "compatibility_date": "2026-07-03",
+  "main": "notion-proxy.js"
+}
