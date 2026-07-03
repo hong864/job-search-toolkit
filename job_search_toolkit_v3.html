@@ -781,31 +781,21 @@ function buildNotionProps(r) {
   if (r.channel)  props['지원경로'] = { select: { name: r.channel } };
   if (r.contact)  props['담당자']  = { rich_text: [{ text: { content: r.contact } }] };
   if (r.memo)     props['메모']    = { rich_text: [{ text: { content: r.memo } }] };
-  if (r.date)     props['date:지원일:start'] = { date: { start: r.date } };
-  if (r.interviewDate) props['date:면접일:start'] = { date: { start: r.interviewDate } };
+  if (r.date)     props['지원일']  = { date: { start: r.date } };
+  if (r.interviewDate) props['면접일'] = { date: { start: r.interviewDate } };
   return props;
 }
 
+// wrangler deploy 완료 후 실제 workers.dev URL로 교체
+const NOTION_PROXY_URL = 'https://job-search-notion-proxy.YOUR-SUBDOMAIN.workers.dev';
+
 async function notionRequest(method, path, body) {
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
+  const res = await fetch(`${NOTION_PROXY_URL}${path}`, {
+    method,
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 1000,
-      mcp_servers: [{ type: 'url', url: 'https://mcp.notion.com/mcp', name: 'notion' }],
-      messages: [{
-        role: 'user',
-        content: `Notion API 호출: ${method} ${path}\n요청 바디(JSON): ${JSON.stringify(body)}\n\n결과를 JSON만 반환해줘. 설명 없이.`
-      }]
-    })
+    body: body ? JSON.stringify(body) : undefined,
   });
-  const data = await res.json();
-  const text = data.content?.map(c => c.text || '').join('') || '';
-  try {
-    const clean = text.replace(/```json|```/g, '').trim();
-    return JSON.parse(clean);
-  } catch { return { raw: text }; }
+  return res.json();
 }
 </script>
 </body>
